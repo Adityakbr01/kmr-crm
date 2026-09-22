@@ -2,11 +2,17 @@ import { Pencil } from "lucide-react";
 import { Tooltip } from "@mui/material";
 import moment from "moment";
 import DataTable from "@/components/common/DataTable";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { encryptId } from "@/components/common/EncryptionDecryption";
 import LoaderComponent from "@/components/common/LoaderComponent";
 import Layout from "@/components/Layout";
+import { ButtonCss } from "@/components/common/ButtonCss";
+import QuickAddModal from "@/components/common/QuickAddModal";
+import {
+  CreatedVendor,
+  QuickAddVendorForm,
+} from "@/components/common/QuickAddForms";
 import { CATEGORY_LIST, VENDOR_LIVE_LIST } from "@/pages/api/UseApi";
 
 type LiveRow = Record<string, any>;
@@ -21,24 +27,33 @@ const LiveList: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [loading, setLoading] = useState<boolean>(false);
+  const [showVendorModal, setShowVendorModal] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchLiveList = async (): Promise<void> => {
-      try {
-        setLoading(true);
-        const response: any = await VENDOR_LIVE_LIST();
+  const fetchLiveList = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      const response: any = await VENDOR_LIVE_LIST();
 
-        setLiveList(response?.data?.vendor || []);
-      } catch (error: any) {
-        console.error("Error fetching live list data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLiveList();
+      setLiveList(response?.data?.vendor || []);
+    } catch (error: any) {
+      console.error("Error fetching live list data:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchLiveList();
+  }, [fetchLiveList]);
+
+  // Refresh the live list in place after an inline "Add New Vendor" save.
+  const handleVendorCreated = async (
+    _created: CreatedVendor
+  ): Promise<void> => {
+    await fetchLiveList();
+    setShowVendorModal(false);
+  };
 
   useEffect(() => {
     const fetchCategories = async (): Promise<void> => {
@@ -223,6 +238,11 @@ const LiveList: React.FC = () => {
     setTableProps: () => ({
       className: "rounded-lg shadow-sm border border-gray-200",
     }),
+    customToolbar: () => (
+      <button onClick={() => setShowVendorModal(true)} className={ButtonCss}>
+        + Add Vendor
+      </button>
+    ),
   };
 
   const data = useMemo(() => filteredLiveList, [filteredLiveList]);
@@ -266,6 +286,20 @@ const LiveList: React.FC = () => {
             options={options}
           />
         </div>
+
+        {showVendorModal && (
+          <QuickAddModal
+            title="Add New Vendor"
+            wide
+            onClose={() => setShowVendorModal(false)}
+          >
+            <QuickAddVendorForm
+              defaultTrader="1"
+              onCreated={handleVendorCreated}
+              onClose={() => setShowVendorModal(false)}
+            />
+          </QuickAddModal>
+        )}
       </div>
     </Layout>
   );
